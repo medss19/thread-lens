@@ -6,6 +6,8 @@
   <img src="public/threadlens-logo.png" alt="ThreadLens Logo" width="120" />
 
   *Transform overwhelming Reddit discussions into clear, actionable insights*
+
+  **[Live Demo](https://thread-lens-seven.vercel.app)** · **[Devpost](https://devpost.com/software/threadlens)**
 </div>
 
 ---
@@ -208,16 +210,6 @@ await fetch('https://foru.ms/api/v1/post', {
 })
 ```
 
-## Demo
-
-**Live App**: [Deploy URL will be here after Vercel deployment]
-
-**Sample Analysis**:
-1. Visit the app
-2. Paste any Reddit post URL (e.g., `https://www.reddit.com/r/jobs/comments/...`)
-3. Click "Analyze Thread"
-4. Explore the insights
-
 ## Future Improvements
 
 - **Comparison Mode** - Compare sentiment across multiple threads
@@ -230,8 +222,8 @@ await fetch('https://foru.ms/api/v1/post', {
 
 <div align="center">
 
-  **Built with Foru.ms + Gemini AI + Next.js**
+  **Built with [v0](https://v0.dev) + Foru.ms + Gemini AI + Next.js**
 
-  *Foru.ms x v0 Hackathon 2024*
+  *Foru.ms x v0 Hackathon 2025*
 
 </div>

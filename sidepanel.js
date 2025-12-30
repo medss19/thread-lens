@@ -32,7 +32,7 @@ async function analyzeThread() {
   try {
     console.log("[ThreadLens] Starting analysis for:", currentUrl)
 
-    const response = await fetch("http://localhost:3000/api/analyze", {
+    const response = await fetch("https://thread-lens-seven.vercel.app/api/analyze", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ url: currentUrl }),
