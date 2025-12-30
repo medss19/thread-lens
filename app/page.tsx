@@ -27,9 +27,11 @@ import {
   ExternalLink,
   Heart,
   Activity,
-  Shield,
-  Clock,
   BookmarkPlus,
+  ChevronRight,
+  FileText,
+  Star,
+  Flame,
 } from "lucide-react"
 import Image from "next/image"
 
@@ -82,6 +84,8 @@ interface AnalysisResult {
   }
 }
 
+type TabType = "overview" | "comments" | "opinions" | "insights" | "advice"
+
 export default function Home() {
   const [url, setUrl] = useState("")
   const [loading, setLoading] = useState(false)
@@ -89,8 +93,9 @@ export default function Home() {
   const [error, setError] = useState("")
   const [savingToForums, setSavingToForums] = useState(false)
   const [savedToForums, setSavedToForums] = useState(false)
+  const [activeTab, setActiveTab] = useState<TabType>("overview")
 
-  // Calculate Discussion Health Score - a unique metric combining multiple factors
+  // Calculate Discussion Health Score
   const calculateHealthScore = (data: AnalysisResult) => {
     const sentimentBalance = data.sentiment.overall === "mixed" ? 80 :
                             data.sentiment.overall === "neutral" ? 70 :
@@ -132,13 +137,20 @@ export default function Home() {
         }),
       })
 
-      if (response.ok) {
-        const data = await response.json()
+      const data = await response.json()
+      console.log("[ThreadLens] Foru.ms save response:", data)
+
+      if (response.ok && data.success) {
+        console.log("[ThreadLens] Thread URL:", data.thread?.url)
         setResult({ ...result, forumsThread: data.thread })
         setSavedToForums(true)
+      } else {
+        console.error("[ThreadLens] Save failed:", data.error)
+        alert("Failed to save: " + (data.error || "Unknown error"))
       }
     } catch (err) {
       console.error("Failed to save to Foru.ms:", err)
+      alert("Failed to save to Foru.ms. Please try again.")
     } finally {
       setSavingToForums(false)
     }
@@ -159,6 +171,7 @@ export default function Home() {
     setError("")
     setResult(null)
     setSavedToForums(false)
+    setActiveTab("overview")
 
     try {
       const response = await fetch("/api/analyze", {
@@ -196,7 +209,7 @@ export default function Home() {
 
   const shareResults = () => {
     if (result) {
-      const shareText = `I just analyzed "${result.metadata.threadTitle}" with ThreadLens! 🔍\n\nTL;DR: ${result.tldr.slice(0, 200)}...`
+      const shareText = `I just analyzed "${result.metadata.threadTitle}" with ThreadLens!\n\nTL;DR: ${result.tldr.slice(0, 200)}...`
       if (navigator.share) {
         navigator.share({ title: "ThreadLens Analysis", text: shareText, url: window.location.href })
       } else {
@@ -205,6 +218,14 @@ export default function Home() {
       }
     }
   }
+
+  const tabs = [
+    { id: "overview" as TabType, label: "Overview", icon: FileText, description: "Summary & scores" },
+    { id: "comments" as TabType, label: "Top Comments", icon: MessageSquare, description: "Best discussions" },
+    { id: "opinions" as TabType, label: "Opinions", icon: Users, description: "Key viewpoints" },
+    { id: "insights" as TabType, label: "Insights", icon: Lightbulb, description: "Deep analysis" },
+    { id: "advice" as TabType, label: "Takeaways", icon: CheckCircle2, description: "Action items" },
+  ]
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-pink-500/5">
@@ -240,7 +261,7 @@ export default function Home() {
       <main className="container mx-auto px-4 py-12 max-w-7xl">
         {!result ? (
           <div className="space-y-12">
-            {/* Hero Section with animated gradient */}
+            {/* Hero Section */}
             <div className="text-center space-y-8">
               <div className="inline-flex items-center gap-2 bg-gradient-to-r from-pink-500/10 to-rose-500/10 border border-pink-500/20 px-5 py-2.5 rounded-full text-sm font-medium mb-4 backdrop-blur-sm">
                 <Sparkles className="w-4 h-4 text-pink-400 animate-pulse" />
@@ -280,7 +301,7 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Input Section with glass effect */}
+            {/* Input Section */}
             <Card className="border-pink-500/20 shadow-2xl shadow-pink-500/10 bg-card/50 backdrop-blur-sm">
               <CardHeader className="pb-4">
                 <CardTitle className="text-2xl">Analyze a Reddit Thread</CardTitle>
@@ -330,42 +351,17 @@ export default function Home() {
               </CardContent>
             </Card>
 
-            {/* Features Grid with hover effects */}
+            {/* Features Grid */}
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 pt-8">
               {[
-                {
-                  icon: Activity,
-                  title: "Health Score",
-                  desc: "Unique discussion health metric analyzing engagement quality",
-                  color: "cyan",
-                },
-                {
-                  icon: Database,
-                  title: "Foru.ms Archive",
-                  desc: "Save analyses to Foru.ms for permanent, searchable storage",
-                  color: "cyan",
-                },
-                {
-                  icon: Sparkles,
-                  title: "AI Analysis",
-                  desc: "Sentiment, themes, and consensus detection using Gemini AI",
-                  color: "pink",
-                },
-                {
-                  icon: Lightbulb,
-                  title: "Actionable Insights",
-                  desc: "Practical advice and takeaways you can use immediately",
-                  color: "emerald",
-                },
+                { icon: Activity, title: "Health Score", desc: "Unique discussion health metric analyzing engagement quality", color: "cyan" },
+                { icon: Database, title: "Foru.ms Archive", desc: "Save analyses to Foru.ms for permanent, searchable storage", color: "cyan" },
+                { icon: Sparkles, title: "AI Analysis", desc: "Sentiment, themes, and consensus detection using Gemini AI", color: "pink" },
+                { icon: Lightbulb, title: "Actionable Insights", desc: "Practical advice and takeaways you can use immediately", color: "emerald" },
               ].map((feature, idx) => (
-                <Card
-                  key={idx}
-                  className="border-border/50 bg-card/30 backdrop-blur-sm hover:border-pink-500/30 transition-all duration-300 hover:shadow-lg hover:shadow-pink-500/10 hover:-translate-y-1 group"
-                >
+                <Card key={idx} className="border-border/50 bg-card/30 backdrop-blur-sm hover:border-pink-500/30 transition-all duration-300 hover:shadow-lg hover:shadow-pink-500/10 hover:-translate-y-1 group">
                   <CardHeader>
-                    <div
-                      className={`w-12 h-12 bg-gradient-to-br from-${feature.color}-500/10 to-${feature.color}-500/5 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform duration-300`}
-                    >
+                    <div className={`w-12 h-12 bg-gradient-to-br from-${feature.color}-500/10 to-${feature.color}-500/5 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform duration-300`}>
                       <feature.icon className={`w-6 h-6 text-${feature.color}-500`} />
                     </div>
                     <CardTitle className="text-lg">{feature.title}</CardTitle>
@@ -394,9 +390,9 @@ export default function Home() {
             </div>
           </div>
         ) : (
-          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
             {/* Back Button & Actions */}
-            <div className="flex items-center justify-between flex-wrap gap-4">
+            <div className="flex items-center justify-between flex-wrap gap-4 mb-6">
               <Button variant="ghost" onClick={() => setResult(null)} className="gap-2">
                 ← Analyze Another Thread
               </Button>
@@ -438,25 +434,23 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Thread Header with gradient card */}
-            <Card className="border-pink-500/20 bg-gradient-to-br from-card to-pink-500/5 backdrop-blur-sm">
-              <CardHeader>
+            {/* Thread Header Card */}
+            <Card className="border-pink-500/20 bg-gradient-to-br from-card to-pink-500/5 backdrop-blur-sm mb-6">
+              <CardHeader className="pb-4">
                 <div className="flex items-start gap-4">
                   <div className="w-12 h-12 bg-gradient-to-br from-pink-500 to-rose-500 rounded-xl flex items-center justify-center flex-shrink-0">
                     <MessageSquare className="w-6 h-6 text-white" />
                   </div>
-                  <div className="flex-1 space-y-3">
-                    <h1 className="text-3xl font-bold text-balance leading-tight">{result.metadata.threadTitle}</h1>
+                  <div className="flex-1">
+                    <h1 className="text-2xl font-bold text-balance leading-tight mb-2">{result.metadata.threadTitle}</h1>
                     <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
                       <span className="flex items-center gap-1">
                         by <span className="text-pink-400 font-medium">u/{result.metadata.threadAuthor}</span>
                       </span>
-                      <span>•</span>
                       <span className="flex items-center gap-1">
                         <ThumbsUp className="w-3 h-3" />
                         {result.metadata.threadScore} upvotes
                       </span>
-                      <span>•</span>
                       <span className="flex items-center gap-1">
                         <MessageSquare className="w-3 h-3" />
                         {result.metadata.analyzedComments} of {result.metadata.totalComments} comments analyzed
@@ -467,385 +461,418 @@ export default function Home() {
               </CardHeader>
             </Card>
 
-            {/* Sentiment & Consensus Overview */}
-            <div className="grid md:grid-cols-2 gap-6">
-              <Card
-                className={`${getSentimentDisplay(result.sentiment.overall).border} border-2 bg-gradient-to-br ${getSentimentDisplay(result.sentiment.overall).bg} to-transparent backdrop-blur-sm`}
-              >
-                <CardHeader>
-                  <div className="flex items-center gap-4">
-                    {(() => {
-                      const { icon: Icon, color, bg } = getSentimentDisplay(result.sentiment.overall)
+            {/* Main Layout: Sidebar + Content */}
+            <div className="flex flex-col lg:flex-row gap-6">
+              {/* Sidebar Navigation */}
+              <div className="lg:w-64 flex-shrink-0">
+                <div className="lg:sticky lg:top-24 space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-3">
+                    Analysis Sections
+                  </p>
+                  {tabs.map((tab) => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-200 ${
+                        activeTab === tab.id
+                          ? "bg-gradient-to-r from-pink-500/20 to-rose-500/10 border border-pink-500/30 text-foreground"
+                          : "hover:bg-card/50 text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${
+                        activeTab === tab.id
+                          ? "bg-gradient-to-br from-pink-500 to-rose-500"
+                          : "bg-card"
+                      }`}>
+                        <tab.icon className={`w-4 h-4 ${activeTab === tab.id ? "text-white" : "text-muted-foreground"}`} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm">{tab.label}</p>
+                        <p className="text-xs text-muted-foreground truncate">{tab.description}</p>
+                      </div>
+                      {activeTab === tab.id && (
+                        <ChevronRight className="w-4 h-4 text-pink-400" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Content Area */}
+              <div className="flex-1 min-w-0">
+                {/* Overview Tab */}
+                {activeTab === "overview" && (
+                  <div className="space-y-6 animate-in fade-in duration-300">
+                    {/* TL;DR */}
+                    <Card className="border-pink-500/30 bg-gradient-to-br from-pink-500/5 via-transparent to-rose-500/5">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-gradient-to-br from-pink-500 to-rose-500 rounded-lg flex items-center justify-center">
+                            <Quote className="w-5 h-5 text-white" />
+                          </div>
+                          <CardTitle className="text-lg">TL;DR - Quick Summary</CardTitle>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-base leading-relaxed text-foreground/90 italic border-l-4 border-pink-500 pl-4">
+                          {result.tldr}
+                        </p>
+                      </CardContent>
+                    </Card>
+
+                    {/* Quick Stats Grid */}
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                      {/* Sentiment */}
+                      <Card className={`${getSentimentDisplay(result.sentiment.overall).border} ${getSentimentDisplay(result.sentiment.overall).bg}`}>
+                        <CardContent className="p-4 text-center">
+                          {(() => {
+                            const { icon: Icon, color } = getSentimentDisplay(result.sentiment.overall)
+                            return (
+                              <>
+                                <Icon className={`w-8 h-8 mx-auto mb-2 ${color}`} />
+                                <p className={`text-2xl font-bold ${color}`}>{result.sentiment.score}</p>
+                                <p className="text-xs text-muted-foreground capitalize">{result.sentiment.overall} Sentiment</p>
+                              </>
+                            )
+                          })()}
+                        </CardContent>
+                      </Card>
+
+                      {/* Consensus */}
+                      <Card className="border-rose-500/20 bg-rose-500/5">
+                        <CardContent className="p-4 text-center">
+                          <Users className="w-8 h-8 mx-auto mb-2 text-rose-500" />
+                          <p className="text-2xl font-bold text-rose-500">{result.consensus.agreementLevel}%</p>
+                          <p className="text-xs text-muted-foreground">Agreement Level</p>
+                        </CardContent>
+                      </Card>
+
+                      {/* Health Score */}
+                      {(() => {
+                        const healthScore = calculateHealthScore(result)
+                        const healthInfo = getHealthLabel(healthScore)
+                        return (
+                          <Card className="border-cyan-500/20 bg-cyan-500/5">
+                            <CardContent className="p-4 text-center">
+                              <Activity className={`w-8 h-8 mx-auto mb-2 ${healthInfo.color}`} />
+                              <p className={`text-2xl font-bold ${healthInfo.color}`}>{healthScore}</p>
+                              <p className="text-xs text-muted-foreground">{healthInfo.label}</p>
+                            </CardContent>
+                          </Card>
+                        )
+                      })()}
+
+                      {/* Themes Count */}
+                      <Card className="border-purple-500/20 bg-purple-500/5">
+                        <CardContent className="p-4 text-center">
+                          <TrendingUp className="w-8 h-8 mx-auto mb-2 text-purple-500" />
+                          <p className="text-2xl font-bold text-purple-500">{result.themes?.length || 0}</p>
+                          <p className="text-xs text-muted-foreground">Main Themes</p>
+                        </CardContent>
+                      </Card>
+                    </div>
+
+                    {/* Sentiment Reasoning */}
+                    <Card className="border-border/50 bg-card/50">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-base flex items-center gap-2">
+                          <Heart className="w-4 h-4 text-pink-400" />
+                          Why this sentiment?
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-sm text-muted-foreground leading-relaxed">{result.sentiment.reasoning}</p>
+                      </CardContent>
+                    </Card>
+
+                    {/* Consensus Description */}
+                    <Card className="border-border/50 bg-card/50">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-base flex items-center gap-2">
+                          <Users className="w-4 h-4 text-rose-400" />
+                          Consensus: <span className="capitalize text-rose-400">{result.consensus.type.replace("_", " ")}</span>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-sm text-muted-foreground leading-relaxed">{result.consensus.description}</p>
+                      </CardContent>
+                    </Card>
+
+                    {/* Themes */}
+                    {result.themes && result.themes.length > 0 && (
+                      <Card className="border-border/50 bg-card/50">
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-base flex items-center gap-2">
+                            <TrendingUp className="w-4 h-4 text-purple-400" />
+                            Discussion Themes
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-3">
+                            {result.themes.map((theme, idx) => (
+                              <div key={idx} className="flex items-start gap-3 p-3 rounded-lg bg-background/50">
+                                <Badge
+                                  variant={theme.prevalence === "high" ? "default" : theme.prevalence === "medium" ? "secondary" : "outline"}
+                                  className="shrink-0 mt-0.5"
+                                >
+                                  {theme.prevalence}
+                                </Badge>
+                                <div>
+                                  <p className="font-medium text-sm">{theme.name}</p>
+                                  <p className="text-xs text-muted-foreground mt-1">{theme.description}</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+                  </div>
+                )}
+
+                {/* Comments Tab */}
+                {activeTab === "comments" && (
+                  <div className="space-y-4 animate-in fade-in duration-300">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Star className="w-5 h-5 text-amber-400" />
+                      <h2 className="text-lg font-semibold">Top {result.topComments?.length || 0} Most Valuable Comments</h2>
+                    </div>
+
+                    {result.topComments && result.topComments.length > 0 ? (
+                      result.topComments.map((comment, idx) => (
+                        <Card key={idx} className="border-border/50 bg-card/50 hover:border-cyan-500/30 transition-colors">
+                          <CardContent className="p-5">
+                            <div className="flex items-center justify-between mb-3">
+                              <span className="font-semibold text-cyan-400">u/{comment.author}</span>
+                              <Badge variant="outline" className="text-xs">
+                                <ThumbsUp className="w-3 h-3 mr-1" />
+                                {comment.score}
+                              </Badge>
+                            </div>
+                            <p className="text-sm text-muted-foreground leading-relaxed italic mb-4">
+                              &quot;{comment.text}&quot;
+                            </p>
+                            <div className="flex items-start gap-2 p-3 bg-cyan-500/5 rounded-lg border border-cyan-500/10">
+                              <Lightbulb className="w-4 h-4 text-cyan-400 flex-shrink-0 mt-0.5" />
+                              <div>
+                                <p className="text-xs font-medium text-cyan-400 mb-1">AI Insight</p>
+                                <p className="text-sm text-foreground/80">{comment.insight}</p>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))
+                    ) : (
+                      <Card className="border-border/50 bg-card/50">
+                        <CardContent className="p-8 text-center text-muted-foreground">
+                          No top comments identified in this thread.
+                        </CardContent>
+                      </Card>
+                    )}
+                  </div>
+                )}
+
+                {/* Opinions Tab */}
+                {activeTab === "opinions" && (
+                  <div className="space-y-4 animate-in fade-in duration-300">
+                    <div className="flex items-center gap-2 mb-4">
+                      <MessageSquare className="w-5 h-5 text-orange-400" />
+                      <h2 className="text-lg font-semibold">Key Opinions from the Community</h2>
+                    </div>
+
+                    {result.keyOpinions.map((opinion, idx) => {
+                      const { icon: Icon, color, bg, border } = getSentimentDisplay(opinion.sentiment)
                       return (
-                        <>
-                          <div
-                            className={`w-14 h-14 ${bg} rounded-xl flex items-center justify-center ring-4 ring-background`}
-                          >
-                            <Icon className={`w-7 h-7 ${color}`} />
+                        <Card key={idx} className={`${border} ${bg}`}>
+                          <CardContent className="p-5">
+                            <div className="flex items-start gap-4">
+                              <div className={`w-10 h-10 ${bg} rounded-lg flex items-center justify-center shrink-0 ring-2 ring-background`}>
+                                <Icon className={`w-5 h-5 ${color}`} />
+                              </div>
+                              <div className="flex-1">
+                                <p className="font-medium leading-relaxed mb-2">{opinion.opinion}</p>
+                                <p className="text-sm text-muted-foreground italic border-l-2 border-border pl-3">
+                                  &quot;{opinion.support}&quot;
+                                </p>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )
+                    })}
+
+                    {/* Controversial Points */}
+                    {result.controversialPoints && result.controversialPoints.length > 0 && (
+                      <Card className="border-orange-500/20 bg-orange-500/5 mt-6">
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-base flex items-center gap-2">
+                            <Flame className="w-4 h-4 text-orange-500" />
+                            Hot Takes & Controversial Points
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <ul className="space-y-2">
+                            {result.controversialPoints.map((point, idx) => (
+                              <li key={idx} className="flex gap-3 text-sm">
+                                <AlertTriangle className="w-4 h-4 text-orange-500 shrink-0 mt-0.5" />
+                                <span className="text-foreground/80">{point}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </CardContent>
+                      </Card>
+                    )}
+                  </div>
+                )}
+
+                {/* Insights Tab */}
+                {activeTab === "insights" && (
+                  <div className="space-y-4 animate-in fade-in duration-300">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Lightbulb className="w-5 h-5 text-yellow-400" />
+                      <h2 className="text-lg font-semibold">Deep Analysis & Insights</h2>
+                    </div>
+
+                    {result.insights && result.insights.length > 0 ? (
+                      <div className="grid gap-4">
+                        {result.insights.map((insight, idx) => (
+                          <Card key={idx} className="border-border/50 bg-card/50 hover:border-yellow-500/30 transition-colors">
+                            <CardContent className="p-5">
+                              <div className="flex items-start gap-3">
+                                {insight.actionable ? (
+                                  <div className="w-8 h-8 bg-emerald-500/10 rounded-lg flex items-center justify-center shrink-0">
+                                    <Target className="w-4 h-4 text-emerald-500" />
+                                  </div>
+                                ) : (
+                                  <div className="w-8 h-8 bg-blue-500/10 rounded-lg flex items-center justify-center shrink-0">
+                                    <CheckCircle2 className="w-4 h-4 text-blue-500" />
+                                  </div>
+                                )}
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <h4 className="font-semibold">{insight.title}</h4>
+                                    {insight.actionable && (
+                                      <Badge variant="outline" className="text-xs border-emerald-500/30 text-emerald-500">
+                                        <Zap className="w-3 h-3 mr-1" />
+                                        Actionable
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <p className="text-sm text-muted-foreground leading-relaxed">{insight.description}</p>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    ) : (
+                      <Card className="border-border/50 bg-card/50">
+                        <CardContent className="p-8 text-center text-muted-foreground">
+                          No additional insights available for this thread.
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    {/* Emerging Ideas */}
+                    {result.emergingIdeas && result.emergingIdeas.length > 0 && (
+                      <Card className="border-purple-500/20 bg-purple-500/5 mt-6">
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-base flex items-center gap-2">
+                            <Sparkles className="w-4 h-4 text-purple-400" />
+                            Emerging Ideas & New Perspectives
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <ul className="space-y-2">
+                            {result.emergingIdeas.map((idea, idx) => (
+                              <li key={idx} className="flex gap-3 text-sm">
+                                <span className="text-purple-500 shrink-0">✦</span>
+                                <span className="text-foreground/80">{idea}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </CardContent>
+                      </Card>
+                    )}
+                  </div>
+                )}
+
+                {/* Advice/Takeaways Tab */}
+                {activeTab === "advice" && (
+                  <div className="space-y-4 animate-in fade-in duration-300">
+                    <div className="flex items-center gap-2 mb-4">
+                      <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                      <h2 className="text-lg font-semibold">Practical Takeaways</h2>
+                    </div>
+
+                    {result.practicalAdvice && result.practicalAdvice.length > 0 ? (
+                      <div className="space-y-3">
+                        {result.practicalAdvice.map((advice, idx) => (
+                          <Card key={idx} className="border-emerald-500/20 bg-emerald-500/5 hover:border-emerald-500/40 transition-colors">
+                            <CardContent className="p-4">
+                              <div className="flex gap-3">
+                                <div className="w-8 h-8 bg-emerald-500/20 rounded-full flex items-center justify-center shrink-0">
+                                  <span className="text-emerald-500 font-bold text-sm">{idx + 1}</span>
+                                </div>
+                                <p className="text-sm text-foreground/90 leading-relaxed pt-1.5">{advice}</p>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    ) : (
+                      <Card className="border-border/50 bg-card/50">
+                        <CardContent className="p-8 text-center text-muted-foreground">
+                          No practical advice extracted from this thread.
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    {/* Quick Action CTA */}
+                    <Card className="border-cyan-500/30 bg-gradient-to-br from-cyan-500/10 to-transparent mt-6">
+                      <CardContent className="p-6">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 bg-gradient-to-br from-cyan-500 to-teal-500 rounded-xl flex items-center justify-center">
+                            <Database className="w-6 h-6 text-white" />
                           </div>
                           <div className="flex-1">
-                            <CardTitle className="text-xl">Sentiment Analysis</CardTitle>
-                            <CardDescription className="capitalize text-base font-medium">
-                              {result.sentiment.overall}
-                            </CardDescription>
+                            <h3 className="font-semibold mb-1">Save this analysis</h3>
+                            <p className="text-sm text-muted-foreground">Archive to Foru.ms for future reference</p>
                           </div>
-                        </>
-                      )
-                    })()}
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-3">
-                    <div className="flex justify-between text-sm font-medium">
-                      <span>Sentiment Score</span>
-                      <span className={`text-lg ${getSentimentDisplay(result.sentiment.overall).color}`}>
-                        {result.sentiment.score}/100
-                      </span>
-                    </div>
-                    <Progress value={result.sentiment.score} className="h-3" />
-                  </div>
-                  <p className="text-sm text-foreground/80 leading-relaxed">{result.sentiment.reasoning}</p>
-                </CardContent>
-              </Card>
-
-              <Card className="border-2 border-rose-500/20 bg-gradient-to-br from-rose-500/10 to-transparent backdrop-blur-sm">
-                <CardHeader>
-                  <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 bg-rose-500/10 rounded-xl flex items-center justify-center ring-4 ring-background">
-                      <Users className="w-7 h-7 text-rose-500" />
-                    </div>
-                    <div className="flex-1">
-                      <CardTitle className="text-xl">Consensus Level</CardTitle>
-                      <CardDescription className="capitalize text-base font-medium">
-                        {result.consensus.type.replace("_", " ")}
-                      </CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-3">
-                    <div className="flex justify-between text-sm font-medium">
-                      <span>Agreement Level</span>
-                      <span className="text-lg text-rose-500">{result.consensus.agreementLevel}%</span>
-                    </div>
-                    <Progress value={result.consensus.agreementLevel} className="h-3" />
-                  </div>
-                  <p className="text-sm text-foreground/80 leading-relaxed">{result.consensus.description}</p>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Discussion Health Score - UNIQUE FEATURE */}
-            {(() => {
-              const healthScore = calculateHealthScore(result)
-              const healthInfo = getHealthLabel(healthScore)
-              return (
-                <Card className="border-2 border-cyan-500/30 bg-gradient-to-br from-cyan-500/10 via-transparent to-cyan-500/5 backdrop-blur-sm overflow-hidden">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 rounded-full blur-3xl" />
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="w-14 h-14 bg-gradient-to-br from-cyan-500 to-teal-500 rounded-xl flex items-center justify-center ring-4 ring-background">
-                          <Activity className="w-7 h-7 text-white" />
-                        </div>
-                        <div>
-                          <CardTitle className="text-xl">Discussion Health Score</CardTitle>
-                          <CardDescription className="text-base">
-                            Unique metric powered by <span className="text-cyan-400 font-medium">Foru.ms</span> analytics
-                          </CardDescription>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className={`text-4xl font-bold ${healthInfo.color}`}>{healthScore}</div>
-                        <Badge variant="outline" className={`${healthInfo.color} border-current`}>
-                          {healthInfo.label}
-                        </Badge>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <Progress value={healthScore} className="h-3" />
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-2">
-                        <div className="text-center p-3 rounded-lg bg-background/50">
-                          <Heart className="w-5 h-5 mx-auto mb-1 text-pink-400" />
-                          <div className="text-sm font-medium">Sentiment</div>
-                          <div className="text-xs text-muted-foreground">Balance</div>
-                        </div>
-                        <div className="text-center p-3 rounded-lg bg-background/50">
-                          <Users className="w-5 h-5 mx-auto mb-1 text-rose-400" />
-                          <div className="text-sm font-medium">Consensus</div>
-                          <div className="text-xs text-muted-foreground">Quality</div>
-                        </div>
-                        <div className="text-center p-3 rounded-lg bg-background/50">
-                          <MessageSquare className="w-5 h-5 mx-auto mb-1 text-blue-400" />
-                          <div className="text-sm font-medium">Engagement</div>
-                          <div className="text-xs text-muted-foreground">Depth</div>
-                        </div>
-                        <div className="text-center p-3 rounded-lg bg-background/50">
-                          <TrendingUp className="w-5 h-5 mx-auto mb-1 text-purple-400" />
-                          <div className="text-sm font-medium">Diversity</div>
-                          <div className="text-xs text-muted-foreground">of Views</div>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )
-            })()}
-
-            {/* TL;DR with quote styling */}
-            <Card className="border-pink-500/30 bg-gradient-to-br from-pink-500/5 via-transparent to-rose-500/5 backdrop-blur-sm">
-              <CardHeader>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-to-br from-pink-500 to-rose-500 rounded-lg flex items-center justify-center">
-                    <Quote className="w-5 h-5 text-white" />
-                  </div>
-                  <CardTitle className="text-xl">TL;DR</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <p className="text-lg leading-relaxed text-foreground/90 italic border-l-4 border-pink-500 pl-4">
-                  {result.tldr}
-                </p>
-              </CardContent>
-            </Card>
-
-            {/* Themes with visual hierarchy */}
-            {result.themes && result.themes.length > 0 && (
-              <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
-                <CardHeader>
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-lg flex items-center justify-center">
-                      <TrendingUp className="w-5 h-5 text-white" />
-                    </div>
-                    <CardTitle className="text-xl">Discussion Themes</CardTitle>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid gap-4">
-                    {result.themes.map((theme, idx) => (
-                      <div
-                        key={idx}
-                        className="flex gap-4 p-5 rounded-xl border border-border/50 bg-gradient-to-r from-card to-transparent hover:border-teal-500/30 transition-all duration-300"
-                      >
-                        <Badge
-                          variant={
-                            theme.prevalence === "high"
-                              ? "default"
-                              : theme.prevalence === "medium"
-                                ? "secondary"
-                                : "outline"
-                          }
-                          className="shrink-0 h-fit px-3 py-1"
-                        >
-                          {theme.prevalence}
-                        </Badge>
-                        <div className="space-y-2 flex-1">
-                          <h4 className="font-semibold text-lg">{theme.name}</h4>
-                          <p className="text-sm text-muted-foreground leading-relaxed">{theme.description}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Top Comments with elevated cards */}
-            {result.topComments && result.topComments.length > 0 && (
-              <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
-                <CardHeader>
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
-                      <MessageSquare className="w-5 h-5 text-white" />
-                    </div>
-                    <CardTitle className="text-xl">Top Comments</CardTitle>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {result.topComments.map((comment, idx) => (
-                      <div
-                        key={idx}
-                        className="p-5 rounded-xl border border-border/50 bg-gradient-to-br from-card to-transparent space-y-3 hover:border-teal-500/30 transition-all duration-300"
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="font-semibold text-sm text-teal-400">u/{comment.author}</span>
-                          <Badge variant="outline" className="text-xs border-border/50">
-                            <ThumbsUp className="w-3 h-3 mr-1" />
-                            {comment.score}
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground leading-relaxed italic">"{comment.text}"</p>
-                        <div className="flex items-start gap-2 p-3 bg-teal-500/5 rounded-lg border border-teal-500/10">
-                          <Lightbulb className="w-4 h-4 text-teal-400 flex-shrink-0 mt-0.5" />
-                          <p className="text-sm text-teal-400/90 font-medium">{comment.insight}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Key Opinions */}
-            <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
-              <CardHeader>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-500 rounded-lg flex items-center justify-center">
-                    <MessageSquare className="w-5 h-5 text-white" />
-                  </div>
-                  <CardTitle className="text-xl">Key Opinions</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {result.keyOpinions.map((opinion, idx) => {
-                    const { icon: Icon, color, bg, border } = getSentimentDisplay(opinion.sentiment)
-                    return (
-                      <div
-                        key={idx}
-                        className={`flex gap-4 p-5 rounded-xl border ${border} bg-gradient-to-r ${bg} to-transparent`}
-                      >
-                        <div
-                          className={`w-10 h-10 ${bg} rounded-lg flex items-center justify-center shrink-0 ring-2 ring-background`}
-                        >
-                          <Icon className={`w-5 h-5 ${color}`} />
-                        </div>
-                        <div className="space-y-2 flex-1">
-                          <p className="font-semibold leading-relaxed text-foreground">{opinion.opinion}</p>
-                          <p className="text-sm text-muted-foreground leading-relaxed italic pl-4 border-l-2 border-border">
-                            "{opinion.support}"
-                          </p>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Insights Grid */}
-            <div className="grid md:grid-cols-2 gap-6">
-              {/* Key Insights */}
-              {result.insights && result.insights.length > 0 && (
-                <Card className="md:col-span-2 border-border/50 bg-card/50 backdrop-blur-sm">
-                  <CardHeader>
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-lg flex items-center justify-center">
-                        <Lightbulb className="w-5 h-5 text-white" />
-                      </div>
-                      <CardTitle className="text-xl">Key Insights</CardTitle>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid md:grid-cols-2 gap-4">
-                      {result.insights.map((insight, idx) => (
-                        <div
-                          key={idx}
-                          className="p-5 rounded-xl border border-border/50 bg-gradient-to-br from-card to-transparent space-y-3 hover:border-teal-500/30 transition-all duration-300"
-                        >
-                          <div className="flex items-center gap-3">
-                            {insight.actionable ? (
-                              <div className="w-8 h-8 bg-emerald-500/10 rounded-lg flex items-center justify-center">
-                                <Target className="w-4 h-4 text-emerald-500" />
-                              </div>
-                            ) : (
-                              <div className="w-8 h-8 bg-blue-500/10 rounded-lg flex items-center justify-center">
-                                <CheckCircle2 className="w-4 h-4 text-blue-500" />
-                              </div>
-                            )}
-                            <h4 className="font-semibold text-base">{insight.title}</h4>
-                          </div>
-                          <p className="text-sm text-muted-foreground leading-relaxed">{insight.description}</p>
-                          {insight.actionable && (
-                            <Badge variant="outline" className="text-xs border-emerald-500/30 text-emerald-500">
-                              <Zap className="w-3 h-3 mr-1" />
-                              Actionable
-                            </Badge>
+                          {savedToForums || result.forumsThread ? (
+                            <Button
+                              variant="outline"
+                              className="gap-2 bg-cyan-500/10 border-cyan-500/30 text-cyan-400"
+                              onClick={() => result.forumsThread?.url && window.open(result.forumsThread.url, '_blank')}
+                            >
+                              <CheckCircle2 className="w-4 h-4" />
+                              View on Foru.ms
+                            </Button>
+                          ) : (
+                            <Button
+                              onClick={saveToForums}
+                              disabled={savingToForums}
+                              className="gap-2 bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-600 hover:to-teal-600"
+                            >
+                              {savingToForums ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                  Saving...
+                                </>
+                              ) : (
+                                <>
+                                  <BookmarkPlus className="w-4 h-4" />
+                                  Save Now
+                                </>
+                              )}
+                            </Button>
                           )}
                         </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Controversial Points */}
-              {result.controversialPoints && result.controversialPoints.length > 0 && (
-                <Card className="border-orange-500/20 bg-gradient-to-br from-orange-500/5 to-transparent backdrop-blur-sm">
-                  <CardHeader>
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-500 rounded-lg flex items-center justify-center">
-                        <AlertTriangle className="w-5 h-5 text-white" />
-                      </div>
-                      <CardTitle className="text-lg">Controversial Points</CardTitle>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <ul className="space-y-3">
-                      {result.controversialPoints.map((point, idx) => (
-                        <li key={idx} className="flex gap-3 text-sm">
-                          <span className="text-orange-500 shrink-0 text-lg">⚠</span>
-                          <span className="text-foreground/80 leading-relaxed">{point}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Emerging Ideas */}
-              {result.emergingIdeas && result.emergingIdeas.length > 0 && (
-                <Card className="border-purple-500/20 bg-gradient-to-br from-purple-500/5 to-transparent backdrop-blur-sm">
-                  <CardHeader>
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
-                        <Sparkles className="w-5 h-5 text-white" />
-                      </div>
-                      <CardTitle className="text-lg">Emerging Ideas</CardTitle>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <ul className="space-y-3">
-                      {result.emergingIdeas.map((idea, idx) => (
-                        <li key={idx} className="flex gap-3 text-sm">
-                          <span className="text-purple-500 shrink-0 text-lg">✨</span>
-                          <span className="text-foreground/80 leading-relaxed">{idea}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Practical Advice */}
-              {result.practicalAdvice && result.practicalAdvice.length > 0 && (
-                <Card className="md:col-span-2 border-emerald-500/20 bg-gradient-to-br from-emerald-500/5 to-transparent backdrop-blur-sm">
-                  <CardHeader>
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-lg flex items-center justify-center">
-                        <CheckCircle2 className="w-5 h-5 text-white" />
-                      </div>
-                      <CardTitle className="text-lg">Practical Advice</CardTitle>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <ul className="grid md:grid-cols-2 gap-4">
-                      {result.practicalAdvice.map((advice, idx) => (
-                        <li
-                          key={idx}
-                          className="flex gap-3 p-4 bg-emerald-500/5 rounded-lg border border-emerald-500/10"
-                        >
-                          <span className="text-emerald-500 shrink-0 font-bold text-lg">→</span>
-                          <span className="text-foreground/90 leading-relaxed text-sm">{advice}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </CardContent>
-                </Card>
-              )}
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}

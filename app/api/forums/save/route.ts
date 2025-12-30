@@ -80,34 +80,64 @@ ${analysis.practicalAdvice?.map((a: string) => `- ${a}`).join("\n") || "No advic
     }
 
     const thread = await threadResponse.json()
+    console.log("[Foru.ms] Thread created - full response:", JSON.stringify(thread, null, 2))
 
-    // Add top comments as posts
-    if (analysis.topComments && analysis.topComments.length > 0) {
-      for (const comment of analysis.topComments.slice(0, 5)) {
-        await fetch(`https://foru.ms/api/v1/post`, {
-          method: "POST",
-          headers: {
-            "x-api-key": FORUMS_API_KEY,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            body: `**u/${comment.author}** (${comment.score} upvotes):\n> ${comment.text}\n\n**AI Insight:** ${comment.insight}`,
-            threadId: thread.id,
-            extendedData: {
-              type: "top_comment",
-              author: comment.author,
-              score: comment.score,
-            },
-          }),
-        })
-      }
+    // Extract thread ID from various possible response formats
+    const threadId = thread.id || thread._id || thread.threadId || null
+
+    if (!threadId) {
+      console.error("[Foru.ms] No thread ID in response:", thread)
+      // Still return success but with a fallback URL
+      return NextResponse.json({
+        success: true,
+        thread: {
+          id: "saved",
+          url: "https://foru.ms",
+        },
+        message: "Thread saved but ID not returned"
+      })
     }
+
+    // Add top comments as posts (don't fail if this errors)
+    try {
+      if (analysis.topComments && analysis.topComments.length > 0) {
+        for (const comment of analysis.topComments.slice(0, 5)) {
+          await fetch(`https://foru.ms/api/v1/post`, {
+            method: "POST",
+            headers: {
+              "x-api-key": FORUMS_API_KEY,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              body: `**u/${comment.author}** (${comment.score} upvotes):\n> ${comment.text}\n\n**AI Insight:** ${comment.insight}`,
+              threadId: threadId,
+              extendedData: {
+                type: "top_comment",
+                author: comment.author,
+                score: comment.score,
+              },
+            }),
+          })
+        }
+      }
+    } catch (postError) {
+      console.error("[Foru.ms] Error adding comments:", postError)
+      // Continue anyway - thread was created
+    }
+
+    // Build the URL - try different possible response formats from Foru.ms
+    const threadUrl = thread.url ||
+                      thread.link ||
+                      (thread.slug ? `https://foru.ms/thread/${thread.slug}` : null) ||
+                      `https://foru.ms/thread/${threadId}`
+
+    console.log("[Foru.ms] Success! Thread ID:", threadId, "URL:", threadUrl)
 
     return NextResponse.json({
       success: true,
       thread: {
-        id: thread.id,
-        url: `https://foru.ms/thread/${thread.slug || thread.id}`,
+        id: threadId,
+        url: threadUrl,
       },
     })
   } catch (error) {
