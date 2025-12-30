@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ThreadLens Side Panel</title>
+  <style>
+    :root {
+      --background: #0a0a0f;
+      --foreground: #fafafa;
+      --card: #14141b;
+      /* Updated accent colors from teal/cyan to pink/rose */
+      --accent-pink: #ec4899;
+      --accent-rose: #f43f5e;
+      --border: #2a2a3a;
+      --muted-foreground: #9ca3af;
+    }
+    
+    body {
+      background: linear-gradient(135deg, var(--background) 0%, #0f1419 100%);
+      color: var(--foreground);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+    }
+    
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px;
+      backdrop-filter: blur(10px);
+    }
+    
+    .btn {
+      /* Updated button gradient to pink/rose colors */
+      background: linear-gradient(135deg, var(--accent-pink), var(--accent-rose));
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 14px;
+      transition: all 0.3s;
+      box-shadow: 0 4px 12px rgba(236, 72, 153, 0.3);
+    }
+    
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(236, 72, 153, 0.4);
+    }
+    
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .badge-consensus {
+      /* Updated badge colors to pink/rose */
+      background: rgba(236, 72, 153, 0.15);
+      color: var(--accent-pink);
+      border: 1px solid rgba(236, 72, 153, 0.3);
+    }
+    
+    .loading-spinner {
+      /* Updated spinner colors to pink */
+      border: 3px solid rgba(236, 72, 153, 0.2);
+      border-top: 3px solid var(--accent-pink);
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      animation: spin 0.8s linear infinite;
+      display: inline-block;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .section-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 15px;
+      margin-bottom: 14px;
+      color: var(--foreground);
+    }
+    
+    .icon {
+      width: 18px;
+      height: 18px;
+      /* Updated icon color to pink */
+      color: var(--accent-pink);
+    }
+    
+    .logo-container {
+      width: 56px;
+      height: 56px;
+      /* Updated logo container gradient to pink/rose */
+      background: linear-gradient(135deg, var(--accent-pink), var(--accent-rose));
+      border-radius: 16px;
+      padding: 2px;
+      margin: 0 auto 16px;
+      position: relative;
+    }
+    
+    .logo-inner {
+      width: 100%;
+      height: 100%;
+      background: var(--card);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    
+    .logo-inner img {
+      width: 90%;
+      height: 90%;
+      object-fit: contain;
+    }
+    
+    .pulse-dot {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      width: 10px;
+      height: 10px;
+      background: #10b981;
+      border-radius: 50%;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.1); }
+    }
+    
+    .result-card {
+      animation: fadeIn 0.4s ease-out;
+    }
+    
+    .gradient-text {
+      /* Updated gradient text to pink/rose colors */
+      background: linear-gradient(135deg, var(--accent-pink), var(--accent-rose));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+  </style>
+</head>
+<body>
+  <div id="app" style="padding: 24px;">
+    <!-- Initial State -->
+    <div id="initial-state">
+      <div style="text-align: center; margin-bottom: 28px;">
+        <div class="logo-container">
+          <div class="logo-inner">
+            <img src="../public/threadlens-logo.png" alt="ThreadLens" />
+          </div>
+          <div class="pulse-dot"></div>
+        </div>
+        <h1 class="gradient-text" style="font-size: 26px; font-weight: 800; margin-bottom: 6px;">ThreadLens</h1>
+        <p style="color: var(--muted-foreground); font-size: 13px; font-weight: 500;">AI-Powered Reddit Analysis</p>
+      </div>
+      
+      <div class="card" style="margin-bottom: 18px;">
+        <p style="color: var(--muted-foreground); font-size: 13px; margin-bottom: 16px; line-height: 1.6;">Navigate to any Reddit post and click below to unlock deep AI insights</p>
+        <button class="btn" id="analyze-btn" style="width: 100%;">
+          <span id="btn-text">🔍 Analyze Thread</span>
+          <span id="btn-loading" style="display: none; align-items: center; justify-content: center; gap: 8px;">
+            <span class="loading-spinner"></span>
+            <span>Analyzing...</span>
+          </span>
+        </button>
+      </div>
+      
+      <div style="padding: 16px; background: rgba(236, 72, 153, 0.08); border-radius: 12px; border: 1px solid rgba(236, 72, 153, 0.2); backdrop-filter: blur(10px);">
+        <p style="font-size: 12px; color: var(--muted-foreground); margin: 0; line-height: 1.6;">
+          <strong class="gradient-text">Pro Tip:</strong> Get instant sentiment analysis, consensus detection, and actionable insights from any Reddit discussion
+        </p>
+      </div>
+    </div>
+    
+    <!-- Results State -->
+    <div id="results-state" style="display: none;">
+      <div style="margin-bottom: 18px; display: flex; align-items: center; justify-content: space-between;">
+        <button id="back-btn" style="background: none; border: none; color: var(--accent-pink); cursor: pointer; font-size: 13px; font-weight: 600; padding: 8px 0; display: flex; align-items: center; gap: 6px;">
+          <svg style="width: 16px; height: 16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+          </svg>
+          Back
+        </button>
+      </div>
+      
+      <div id="results-content"></div>
+    </div>
+    
+    <!-- Error State -->
+    <div id="error-state" style="display: none;">
+      <div class="card" style="border-color: #ef4444; background: rgba(239, 68, 68, 0.1); backdrop-filter: blur(10px);">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+          <svg style="width: 20px; height: 20px; color: #ef4444;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+          <p style="color: #ef4444; font-weight: 700; margin: 0;">Analysis Failed</p>
+        </div>
+        <p id="error-message" style="color: var(--muted-foreground); font-size: 13px; margin: 0; line-height: 1.6;"></p>
+      </div>
+    </div>
+  </div>
+  
+  <script src="sidepanel.js"></script>
+</body>
+</html>
