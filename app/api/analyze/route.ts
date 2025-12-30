@@ -6,6 +6,67 @@ const FORUMS_API_KEY = process.env.FORUMS_API_KEY || ""
 const FORUMS_ORG_ID = process.env.FORUMS_ORG_ID || ""
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY
 
+// Cache the category ID to avoid repeated API calls
+let cachedCategoryId: string | null = null
+
+async function getOrCreateCategory(): Promise<string | null> {
+  if (cachedCategoryId) return cachedCategoryId
+
+  try {
+    const categoriesResponse = await fetch(`https://foru.ms/api/v1/categories`, {
+      method: "GET",
+      headers: {
+        "x-api-key": FORUMS_API_KEY,
+        "Content-Type": "application/json",
+      },
+    })
+
+    if (categoriesResponse.ok) {
+      const data = await categoriesResponse.json()
+      const categories = data.categories || data.list || []
+
+      const threadLensCategory = categories.find((c: any) =>
+        c.name === "ThreadLens Analyses" || c.name === "Reddit Analyses"
+      )
+
+      if (threadLensCategory) {
+        cachedCategoryId = threadLensCategory.id
+        return cachedCategoryId
+      }
+
+      if (categories.length > 0) {
+        cachedCategoryId = categories[0].id
+        return cachedCategoryId
+      }
+    }
+
+    // Create a new category
+    const createResponse = await fetch(`https://foru.ms/api/v1/category`, {
+      method: "POST",
+      headers: {
+        "x-api-key": FORUMS_API_KEY,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: "ThreadLens Analyses",
+        description: "AI-powered Reddit thread analyses from ThreadLens",
+        color: "#14b8a6",
+      }),
+    })
+
+    if (createResponse.ok) {
+      const newCategory = await createResponse.json()
+      cachedCategoryId = newCategory.id
+      return cachedCategoryId
+    }
+
+    return null
+  } catch (error) {
+    console.error("[v0] Category error:", error)
+    return null
+  }
+}
+
 interface RedditComment {
   author: string
   body: string
@@ -147,6 +208,13 @@ async function syncToForums(redditData: any) {
   }
 
   try {
+    // Get or create a category first
+    const categoryId = await getOrCreateCategory()
+    if (!categoryId) {
+      console.log("[v0] Could not get/create category, skipping Foru.ms sync")
+      return null
+    }
+
     // Create a thread in Foru.ms
     const threadResponse = await fetch(`https://foru.ms/api/v1/thread`, {
       method: "POST",
@@ -157,6 +225,7 @@ async function syncToForums(redditData: any) {
       body: JSON.stringify({
         title: redditData.title,
         body: redditData.selftext || "See comments below",
+        categoryId: categoryId,
         extendedData: {
           source: "reddit",
           author: redditData.author,

@@ -3,6 +3,79 @@ import { type NextRequest, NextResponse } from "next/server"
 const FORUMS_API_KEY = process.env.FORUMS_API_KEY || ""
 const FORUMS_ORG_ID = process.env.FORUMS_ORG_ID || ""
 
+// Cache the category ID to avoid repeated API calls
+let cachedCategoryId: string | null = null
+
+async function getOrCreateCategory(): Promise<string> {
+  // Return cached category if available
+  if (cachedCategoryId) {
+    return cachedCategoryId
+  }
+
+  try {
+    // First, try to get existing categories
+    const categoriesResponse = await fetch(`https://foru.ms/api/v1/categories`, {
+      method: "GET",
+      headers: {
+        "x-api-key": FORUMS_API_KEY,
+        "Content-Type": "application/json",
+      },
+    })
+
+    if (categoriesResponse.ok) {
+      const data = await categoriesResponse.json()
+      const categories = data.categories || data.list || []
+
+      // Look for existing ThreadLens category
+      const threadLensCategory = categories.find((c: any) =>
+        c.name === "ThreadLens Analyses" || c.name === "Reddit Analyses"
+      )
+
+      if (threadLensCategory) {
+        cachedCategoryId = threadLensCategory.id
+        console.log("[Foru.ms] Found existing category:", cachedCategoryId)
+        return cachedCategoryId!
+      }
+
+      // If there are any categories, use the first one
+      if (categories.length > 0) {
+        cachedCategoryId = categories[0].id
+        console.log("[Foru.ms] Using first available category:", cachedCategoryId)
+        return cachedCategoryId!
+      }
+    }
+
+    // No categories exist, create one
+    console.log("[Foru.ms] No categories found, creating ThreadLens category...")
+    const createResponse = await fetch(`https://foru.ms/api/v1/category`, {
+      method: "POST",
+      headers: {
+        "x-api-key": FORUMS_API_KEY,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: "ThreadLens Analyses",
+        description: "AI-powered Reddit thread analyses from ThreadLens",
+        color: "#14b8a6", // Teal color
+      }),
+    })
+
+    if (createResponse.ok) {
+      const newCategory = await createResponse.json()
+      cachedCategoryId = newCategory.id
+      console.log("[Foru.ms] Created new category:", cachedCategoryId)
+      return cachedCategoryId!
+    }
+
+    // If we still can't get/create a category, throw error
+    const errorText = await createResponse.text()
+    throw new Error(`Failed to get or create category: ${errorText}`)
+  } catch (error) {
+    console.error("[Foru.ms] Category error:", error)
+    throw error
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { analysis, originalUrl } = await request.json()
@@ -24,6 +97,12 @@ export async function POST(request: NextRequest) {
         message: "Saved to Foru.ms (Demo Mode)",
       })
     }
+
+    console.log("[Foru.ms] Credentials check - API Key exists:", !!FORUMS_API_KEY, "Org ID exists:", !!FORUMS_ORG_ID)
+
+    // Get or create a category for the thread
+    const categoryId = await getOrCreateCategory()
+    console.log("[Foru.ms] Using category ID:", categoryId)
 
     // Create a rich thread in Foru.ms with the analysis
     const threadContent = `
@@ -53,30 +132,45 @@ ${analysis.practicalAdvice?.map((a: string) => `- ${a}`).join("\n") || "No advic
 *Analyzed by ThreadLens | Original: ${originalUrl}*
     `.trim()
 
+    const requestBody = {
+      title: `[Analysis] ${analysis.metadata.threadTitle}`,
+      body: threadContent,
+      categoryId: categoryId,
+      extendedData: {
+        source: "threadlens",
+        originalUrl,
+        sentimentScore: analysis.sentiment.score,
+        consensusLevel: analysis.consensus.agreementLevel,
+        healthScore: calculateHealthScore(analysis),
+        analyzedAt: new Date().toISOString(),
+      },
+    }
+
+    console.log("[Foru.ms] Creating thread with title:", requestBody.title)
+
     const threadResponse = await fetch(`https://foru.ms/api/v1/thread`, {
       method: "POST",
       headers: {
         "x-api-key": FORUMS_API_KEY,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        title: `[Analysis] ${analysis.metadata.threadTitle}`,
-        body: threadContent,
-        extendedData: {
-          source: "threadlens",
-          originalUrl,
-          sentimentScore: analysis.sentiment.score,
-          consensusLevel: analysis.consensus.agreementLevel,
-          healthScore: calculateHealthScore(analysis),
-          analyzedAt: new Date().toISOString(),
-        },
-      }),
+      body: JSON.stringify(requestBody),
     })
 
     if (!threadResponse.ok) {
       const errorText = await threadResponse.text()
-      console.error("[Foru.ms] API Error:", errorText)
-      throw new Error("Failed to create Foru.ms thread")
+      console.error("[Foru.ms] API Error:", threadResponse.status, errorText)
+      // Return detailed error for debugging
+      return NextResponse.json(
+        {
+          error: `Foru.ms API Error (${threadResponse.status}): ${errorText || 'Unknown error'}`,
+          details: {
+            status: threadResponse.status,
+            response: errorText
+          }
+        },
+        { status: 500 }
+      )
     }
 
     const thread = await threadResponse.json()

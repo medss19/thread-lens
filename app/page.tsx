@@ -146,6 +146,9 @@ export default function Home() {
         setSavedToForums(true)
       } else {
         console.error("[ThreadLens] Save failed:", data.error)
+        if (data.details) {
+          console.error("[ThreadLens] Error details:", data.details)
+        }
         alert("Failed to save: " + (data.error || "Unknown error"))
       }
     } catch (err) {
