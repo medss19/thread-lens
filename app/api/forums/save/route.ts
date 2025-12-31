@@ -3,57 +3,6 @@ import { type NextRequest, NextResponse } from "next/server"
 const FORUMS_API_KEY = process.env.FORUMS_API_KEY || ""
 const FORUMS_ORG_ID = process.env.FORUMS_ORG_ID || ""
 
-// Cache the category ID to avoid repeated API calls
-let cachedCategoryId: string | null = null
-
-async function getOrCreateCategory(): Promise<string | null> {
-  // Return cached category if available
-  if (cachedCategoryId) {
-    return cachedCategoryId
-  }
-
-  console.log("[Foru.ms] API Key (first 8 chars):", FORUMS_API_KEY.slice(0, 8))
-
-  try {
-    // First, try to get existing categories
-    console.log("[Foru.ms] Fetching categories...")
-    const categoriesResponse = await fetch(`https://foru.ms/api/v1/categories`, {
-      method: "GET",
-      headers: {
-        "x-api-key": FORUMS_API_KEY,
-        "Content-Type": "application/json",
-      },
-    })
-
-    console.log("[Foru.ms] Categories response status:", categoriesResponse.status)
-    const rawText = await categoriesResponse.text()
-    console.log("[Foru.ms] Categories raw response:", rawText.slice(0, 500))
-
-    if (categoriesResponse.ok && rawText) {
-      const data = JSON.parse(rawText)
-      // Try multiple possible response formats
-      const categories = data.categories || data.list || (Array.isArray(data) ? data : [])
-      console.log("[Foru.ms] Found", categories.length, "categories")
-
-      if (categories.length > 0) {
-        // Log first category structure to understand the format
-        console.log("[Foru.ms] First category:", JSON.stringify(categories[0]))
-        cachedCategoryId = categories[0].id
-        console.log("[Foru.ms] Using category:", cachedCategoryId)
-        return cachedCategoryId
-      }
-    }
-
-    // If no categories exist and we can't create one, return null
-    // The thread API might work without categoryId in some cases
-    console.log("[Foru.ms] No categories available, will try without categoryId")
-    return null
-  } catch (error) {
-    console.error("[Foru.ms] Category error:", error)
-    return null
-  }
-}
-
 export async function POST(request: NextRequest) {
   try {
     const { analysis, originalUrl } = await request.json()
@@ -77,10 +26,6 @@ export async function POST(request: NextRequest) {
     }
 
     console.log("[Foru.ms] Credentials check - API Key exists:", !!FORUMS_API_KEY, "Org ID exists:", !!FORUMS_ORG_ID)
-
-    // Try to get a category (optional - will try without if none available)
-    const categoryId = await getOrCreateCategory()
-    console.log("[Foru.ms] Category ID:", categoryId || "none - will try without")
 
     // Create a rich thread in Foru.ms with the analysis
     const threadContent = `
@@ -110,9 +55,10 @@ ${analysis.practicalAdvice?.map((a: string) => `- ${a}`).join("\n") || "No advic
 *Analyzed by ThreadLens | Original: ${originalUrl}*
     `.trim()
 
-    const requestBody: Record<string, any> = {
+    const requestBody = {
       title: `[Analysis] ${analysis.metadata.threadTitle}`,
       body: threadContent,
+      tags: ["threadlens", "analysis", "reddit"],
       extendedData: {
         source: "threadlens",
         originalUrl,
@@ -121,11 +67,6 @@ ${analysis.practicalAdvice?.map((a: string) => `- ${a}`).join("\n") || "No advic
         healthScore: calculateHealthScore(analysis),
         analyzedAt: new Date().toISOString(),
       },
-    }
-
-    // Only include categoryId if we have one
-    if (categoryId) {
-      requestBody.categoryId = categoryId
     }
 
     console.log("[Foru.ms] Creating thread with title:", requestBody.title)
