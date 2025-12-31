@@ -55,21 +55,15 @@ ${analysis.practicalAdvice?.map((a: string) => `- ${a}`).join("\n") || "No advic
 *Analyzed by ThreadLens | Original: ${originalUrl}*
     `.trim()
 
+    // Try minimal request - just title and body
     const requestBody = {
-      title: `[Analysis] ${analysis.metadata.threadTitle}`,
+      title: analysis.metadata?.threadTitle
+        ? `[Analysis] ${analysis.metadata.threadTitle}`.slice(0, 200)
+        : "ThreadLens Analysis",
       body: threadContent,
-      tags: ["threadlens", "analysis", "reddit"],
-      extendedData: {
-        source: "threadlens",
-        originalUrl,
-        sentimentScore: analysis.sentiment.score,
-        consensusLevel: analysis.consensus.agreementLevel,
-        healthScore: calculateHealthScore(analysis),
-        analyzedAt: new Date().toISOString(),
-      },
     }
 
-    console.log("[Foru.ms] Creating thread with title:", requestBody.title)
+    console.log("[Foru.ms] Creating thread with request:", JSON.stringify(requestBody).slice(0, 500))
 
     const threadResponse = await fetch(`https://foru.ms/api/v1/thread`, {
       method: "POST",
